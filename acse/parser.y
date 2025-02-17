@@ -50,6 +50,7 @@ void yyerror(const char *msg)
   t_label *label;
   t_ifStmt ifStmt;
   t_whileStmt whileStmt;
+  t_ifRepeatStmt ifRepeatStmt;
 }
 
 /*
@@ -70,6 +71,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token UNTIL
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -77,7 +79,7 @@ void yyerror(const char *msg)
 %token <label> DO
 %token <string> IDENTIFIER
 %token <integer> NUMBER
-
+%token <ifRepeatStmt> IF_REPEAT
 /*
  * Non-terminal symbol semantic value type declarations
  *
@@ -182,6 +184,7 @@ statement
   | return_statement SEMI
   | read_statement SEMI
   | write_statement SEMI
+  | if_repeat_statement SEMI
   | SEMI
 ;
 
@@ -305,6 +308,34 @@ write_statement
     genPrintCharSyscall(program, rTmp);
   }
 ;
+
+// if-repeat-until statement
+if_repeat_statement
+  : IF_REPEAT LPAR exp RPAR {
+
+    // creation of the two labels
+    // - one for the end of the program
+    $1.exit = createLabel(program);
+    // - one for indicating the starting point of the loop
+    $1.loop = createLabel(program);
+    
+    // if exp1 (stored in $3) is FALSE (= 0) the loop is NOT executed so -jump-> to end of the program
+    // if exp1 is TRUE -> execute loops (go to next instruction)
+    genBEQ(program, $3, REG_0, $1.exit);
+    
+    // starting point of each loop
+    assignLabel(program, $1.loop);
+
+  } code_block UNTIL LPAR exp RPAR {
+    
+    // executes the loop while exp2 is FALSE -jump-> loop label, when expr2 is TRUE the loop stops
+    genBEQ(program, $9, REG_0, $1.loop);
+    
+    // end of the statement
+    assignLabel(program, $1.exit);
+  }
+;
+
 
 /* The exp rule represents the syntax of expressions. The semantic value of
  * the rule is the register ID that will contain the value of the expression
