@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token QUESTION COLON
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -96,6 +97,7 @@ void yyerror(const char *msg)
  * specific keyword used (%left, %right).
  */
 
+%left QUESTION COLON
 %left OROR
 %left ANDAND
 %left OR_OP
@@ -434,6 +436,35 @@ exp
     genSNE(program, rNormalizedOp2, $3, REG_0);
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
+  }
+  | exp QUESTION exp COLON exp
+  {
+    //declaring the register for the result
+    $$ = getNewRegister(program);
+
+    //labels creation:
+    // - one for the ELSE part
+    t_label *Else = createLabel(program);
+    // - one for the END of the program
+    t_label *End = createLabel(program);
+
+    //check the value of the first exp: 0(false) -jump-> Else label, 1(true) -> next instr.
+    genBEQ(program, $1, REG_0, Else);
+
+    //TRUE case: the second expr will be returned
+    genADDI(program, $$, $3, 0);
+    //the value in $$ is the correct one so I can jump at the end of the program
+    genJ(program, End);
+
+
+    //FALSE case (after the :)
+    assignLabel(program, Else);
+    //the third expr will be returned
+    genADDI(program, $$, $5, 0);
+
+    
+    //end of the program
+    assignLabel(program, End);
   }
 ;
 
