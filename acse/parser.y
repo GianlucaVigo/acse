@@ -435,6 +435,32 @@ exp
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
   }
+  | TRI_OP LPAR exp RPAR {
+    // register for storing the result
+    $$ = getNewRegister(program);
+
+    //initialize the result to return to zero
+    genADDI(program, $$, REG_0, 0);
+
+    //label pointing to the end of the operator program
+    t_label *l_End = createLabel(program);
+
+    //jump to the l_End label, if exp <= zero
+    genBLE(program, $3, REG_0, l_End);
+
+    //new temporary register
+    t_regID tmp = getNewRegister(program);
+
+    //n = exp, tmp = n + 1
+    genADDI(program, tmp, $3, 1);
+    //Tn = n*(n+1)
+    genMUL(program, $$, $3, tmp);
+    //Tn = [n*(n+1)]/2
+    genDIVI(program, $$, $$, 2);
+
+    //end of the operator
+    assignLabel(program, l_End);
+  }
 ;
 
 var_id
