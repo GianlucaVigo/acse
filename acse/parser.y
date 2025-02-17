@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token TRI_OP
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
