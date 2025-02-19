@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token PICK
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -434,6 +435,72 @@ exp
     genSNE(program, rNormalizedOp2, $3, REG_0);
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
+  }
+  | PICK LPAR var_id COMMA exp RPAR
+  {
+    // if not an array -> error
+    if (!isArray($3)){
+      yyerror("First argument to pick must be an array");
+      YYERROR;
+    }
+
+    // result initalization: 0
+    $$ = getNewRegister(program);
+    genADDI(program, $$, REG_0, 0);
+
+    t_label *end = createLabel(program);
+
+    // find the first 1 bit in the exp value
+    t_regID tmpShifted = getNewRegister(program);
+    t_regID tmpAnd = getNewRegister(program);
+
+    // bitIndex: register stores the index of the  array
+    t_regID bitIndex = getNewRegister(program);
+    genADDI(program, bitIndex, REG_0, 0);
+
+    // cycle labels declarations
+    t_label *endLoop = createLabel(program);
+    t_label *startLoop = createLabel(program);
+
+    // array size
+    t_regID arraySize = getNewRegister(program);
+    genLI(program, arraySize, $3->arraySize);
+    // integer size
+    t_regID intSize = getNewRegister(program);
+    genLI(program, intSize, 32);
+
+    // CYCLE STARTS HERE
+    assignLabel(program, startLoop);
+
+    // condition register holds the comparison results
+    t_regID condition = getNewRegister(program);
+
+    // check the index wrt the array size: if greater -> end (result = 0)
+    genSGE(program, condition, bitIndex, arraySize);
+    genBNE(program, condition, REG_0, end);
+
+    // check the index wrt the integer size (= 32): if greater -> end (result = 0)
+    genSGE(program, condition, bitIndex, intSize);
+    genBNE(program, condition, REG_0, end);
+
+    // performs the main check: (exp >> bitIndex) & 1
+    genSRA(program, tmpShifted, $5, bitIndex);
+    genANDI(program, tmpAnd, tmpShifted, 1);
+
+    // check the result of: (x >> n) & 1
+    // TRUE case: got the first bit set to 1 and its position (bitIndex)
+    genBNE(program, tmpAnd, REG_0 , endLoop);
+    // FALSE case: got a bit set to 0, so I increase the position by 1 and I compute again the cycle
+    genADDI(program, bitIndex, bitIndex, 1);
+    genJ(program, startLoop);
+
+    // CYCLE ENDS HERE
+    assignLabel(program, endLoop);
+
+    t_regID arrayElement = genLoadArrayElement(program, $3, bitIndex);
+    genADD(program, $$, REG_0, arrayElement);
+
+    assignLabel(program, end);
   }
 ;
 
