@@ -26,6 +26,12 @@ typedef struct {
   t_label *lExit; ///< Label to the first instruction after the loop.
 } t_whileStmt;
 
+// 24-01-25 exam: repeat exp statement
+typedef struct {
+  t_label *end;
+  t_label *startLoop;
+} t_repeat_expStmt;
+
 /**
  * @}
  */
