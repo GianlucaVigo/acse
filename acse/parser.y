@@ -50,6 +50,7 @@ void yyerror(const char *msg)
   t_label *label;
   t_ifStmt ifStmt;
   t_whileStmt whileStmt;
+  t_repeat_expStmt repeat_expStmt;
 }
 
 /*
@@ -77,7 +78,7 @@ void yyerror(const char *msg)
 %token <label> DO
 %token <string> IDENTIFIER
 %token <integer> NUMBER
-
+%token <repeat_expStmt> REPEAT_EXP
 /*
  * Non-terminal symbol semantic value type declarations
  *
@@ -182,6 +183,7 @@ statement
   | return_statement SEMI
   | read_statement SEMI
   | write_statement SEMI
+  | repeat_exp_statement SEMI
   | SEMI
 ;
 
@@ -305,6 +307,43 @@ write_statement
     genPrintCharSyscall(program, rTmp);
   }
 ;
+
+// 24-01-25 exam: repeat exp statement
+repeat_exp_statement
+  : REPEAT_EXP LPAR var_id ASSIGN exp COMMA exp
+  {
+    // variable initialization (var = exp1)
+    genStoreRegisterToVariable(program, $3, $5);
+
+    $1.end = createLabel(program);
+
+    // if exp2 <= 0, jump to the end of the program
+    genBLE(program, $7, REG_0, $1.end);
+
+    // initializing the counter (coming from exp2)
+    t_regID counter = getNewRegister(program);
+    genADD(program, counter, $7, REG_0);
+
+    $1.startLoop = createLabel(program);
+    assignLabel(program, $1.startLoop);
+
+    genBEQ(program, counter, REG_0, $1.end);
+
+    // update counter value (counter--)
+    genSUBI(program, counter, counter, 1);
+
+  } COMMA exp RPAR {
+
+    // var = exp3
+    genStoreRegisterToVariable(program, $3, $10);
+
+    // jump to startLoop label
+    genJ(program, $1.startLoop);
+
+    assignLabel(program, $1.end);
+  }
+;
+
 
 /* The exp rule represents the syntax of expressions. The semantic value of
  * the rule is the register ID that will contain the value of the expression
