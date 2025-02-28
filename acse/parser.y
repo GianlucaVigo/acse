@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token CSWAP
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -182,6 +183,7 @@ statement
   | return_statement SEMI
   | read_statement SEMI
   | write_statement SEMI
+  | cswap_statement SEMI
   | SEMI
 ;
 
@@ -303,6 +305,30 @@ write_statement
     t_regID rTmp = getNewRegister(program);
     genLI(program, rTmp, '\n');
     genPrintCharSyscall(program, rTmp);
+  }
+;
+
+// 04-09-2023: cswap statement
+cswap_statement
+  : CSWAP LPAR var_id COMMA exp COMMA exp COMMA var_id RPAR
+  {
+    // label associated to the END of the program
+    t_label *lEnd = createLabel(program);
+
+    t_regID var1 = genLoadVariable(program, $3);
+    t_regID var2 = genLoadVariable(program, $9);
+
+    // in both cases: var2 = var1
+    genStoreRegisterToVariable(program, $9, var1);
+    
+    // if var1 != exp1 -> FALSE case (needed operations already performed)
+    genBNE(program, var1, $5, lEnd);
+
+    // var1 = exp2
+    genStoreRegisterToVariable(program, $3, $7);
+    
+    // here the program ends
+    assignLabel(program, lEnd);
   }
 ;
 
