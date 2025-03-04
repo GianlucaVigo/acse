@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token SOFT_DIV_OP
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -105,7 +106,7 @@ void yyerror(const char *msg)
 %left LT GT LTEQ GTEQ
 %left SHL_OP SHR_OP
 %left PLUS MINUS
-%left MUL_OP DIV_OP MOD_OP
+%left MUL_OP DIV_OP SOFT_DIV_OP MOD_OP
 %right NOT_OP
 
 /*
@@ -434,6 +435,31 @@ exp
     genSNE(program, rNormalizedOp2, $3, REG_0);
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
+  }
+  | exp SOFT_DIV_OP exp
+  {
+    $$ = getNewRegister(program);
+    genADDI(program, $$, REG_0, 0);
+
+    t_regID reminder = getNewRegister(program);
+    genADDI(program, reminder, $1, 0);
+
+    t_label *conditionLabel = createLabel(program);
+    t_label *exitLabel = createLabel(program);
+
+    //while (reminder <= divisor)
+    assignLabel(program, conditionLabel);
+    t_regID condition = getNewRegister(program);
+    genSGE(program, condition, $1, $3);
+    genBEQ(program, condition, REG_0, exitLabel);
+
+    //while body
+    genADDI(program, $$, $$, 1); //i = i++
+    genSUB(program, $1, $1, $3); //reminder = reminder - divisor
+    genJ(program, conditionLabel);
+
+    //
+    assignLabel(program, exitLabel);
   }
 ;
 
