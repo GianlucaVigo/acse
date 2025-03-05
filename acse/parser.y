@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token REPLACE
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -182,6 +183,7 @@ statement
   | return_statement SEMI
   | read_statement SEMI
   | write_statement SEMI
+  | replace_statement SEMI
   | SEMI
 ;
 
@@ -303,6 +305,64 @@ write_statement
     t_regID rTmp = getNewRegister(program);
     genLI(program, rTmp, '\n');
     genPrintCharSyscall(program, rTmp);
+  }
+;
+
+// 2023-06-08 Exam: replace statement
+replace_statement
+  : REPLACE LPAR var_id COMMA exp COMMA exp RPAR
+  {
+    //if not an array -> error
+    if(!isArray($3)){
+      yyerror("First argument must be an array");
+      YYERROR;
+    }
+
+    // labels creation:
+    // - check procedure
+    t_label *checkArrayValue = createLabel(program);
+    // - replace procedure
+    t_label *replaceProcedure = createLabel(program);
+    // - end of replace statement
+    t_label *replaceEnd = createLabel(program);
+    // - return point from replace procedure
+    t_label *returnFromReplace = createLabel(program);    
+
+    // index initialization to zero
+    t_regID index = getNewRegister(program);
+    genADDI(program, index, REG_0, 0);
+   
+    // array size
+    t_regID arraySize = getNewRegister(program);
+    genLI(program, arraySize, $3->arraySize);
+
+
+    // CHECK ARRAY ELEMENT
+    assignLabel(program, checkArrayValue);
+    // if the index is ge (>=) than the array size -> STOP (= go to the end)
+    genBGE(program, index, arraySize, replaceEnd);
+    // load a value
+    t_regID arrayValue = genLoadArrayElement(program, $3, index);
+    // if the array value is equal to the first exp, the replace procedure must be performed
+    genBEQ(program, arrayValue, $5, replaceProcedure);
+    // return from replace procedure
+    assignLabel(program, returnFromReplace);
+    // counter update
+    genADDI(program, index, index, 1);
+    // next check
+    genJ(program, checkArrayValue);
+    
+
+    // REPLACE PROCEDURE
+    assignLabel(program, replaceProcedure);
+    // replace the array element value at position <index> with exp2 (= $7)
+    genStoreRegisterToArrayElement(program, $3, index, $7);
+    // go back to check array element
+    genJ(program, returnFromReplace);
+
+
+    // END
+    assignLabel(program, replaceEnd);
   }
 ;
 
