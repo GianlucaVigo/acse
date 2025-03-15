@@ -24,6 +24,9 @@ void yyerror(const char *msg)
   emitError(curFileLoc, "%s", msg);
 }
 
+// multiple assignment lists
+t_listNode *varListNode = NULL;
+
 %}
 
 /*
@@ -188,15 +191,75 @@ statement
 /* An assignment statement stores the value of an expression in the memory
  * location of a given scalar variable or array element. */
 assign_statement
-  : var_id ASSIGN exp
+  : var_list ASSIGN exp_list
   {
-    genStoreRegisterToVariable(program, $1, $3);
+    printf("\n-----------------------------------------------------\n");
+
+    if(listLength(varListNode) > 0){
+      yyerror("Number of variables is greater than the number of provided expressions");
+      YYERROR;
+    }
   }
   | var_id LSQUARE exp RSQUARE ASSIGN exp
   {
     genStoreRegisterToArrayElement(program, $1, $3, $6);
   }
 ;
+
+exp_list
+  : exp_list COMMA single_exp
+  | single_exp
+;
+
+single_exp
+  : exp {
+    printf("\nexp START\n");
+
+    if(listLength(varListNode) == 0){ // varListNode is empty = zero length list
+      yyerror("Number of expressions is greater than the number of variables provided");
+      YYERROR;
+    }
+
+    printf("\tvar list lenght BEFORE: ");
+    printf("%d\n", listLength(varListNode));
+
+    printf("\t\tCurrent head is: ");
+    printf("%s\n", ((t_symbol *)varListNode->data)->ID);
+
+    t_symbol *var_to_assign = ((t_symbol *)varListNode->data);
+
+    genStoreRegisterToVariable(program, var_to_assign, $1);
+
+    printf("\t\t\t..Assignment completed..\n");
+
+    varListNode = listRemoveNode(varListNode, varListNode);
+    printf("\t\tHead var removed\n");
+
+    printf("\tvar list lenght AFTER: ");
+    printf("%d\n", listLength(varListNode));
+
+    printf("exp END\n");
+  }
+;
+
+var_list
+  : var_list COMMA single_var
+  | single_var
+;
+
+single_var
+  : var_id {
+
+    // if an array -> error
+    if (isArray($1)){
+      yyerror("Can't have an array on the left hand part of a multiple assignment");
+      YYERROR;
+    }
+
+    varListNode = listInsert(varListNode, $1, -1);
+  }
+;
+
 
 /* An if statements first computes the expression, then jumps to the `else' part
  * if the expression is equal to zero. Otherwise the `then' part is executed.
