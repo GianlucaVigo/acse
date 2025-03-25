@@ -1,0 +1,22 @@
+int v, i, a[5];
+
+a[0]=8;
+a[1]=6;
+a[2]=9;
+a[3]=4;
+a[4]=7;
+
+
+if (inbounds(v = a[0])){
+  write(1);
+} else {
+  write(2);
+}
+
+write(inbounds(v = a[-1+v]));
+
+i = 2;
+while(inbounds(v = a[i])) {
+  write(v);
+  i = i + 1;
+}
