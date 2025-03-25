@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token INBOUNDS
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -306,11 +307,51 @@ write_statement
   }
 ;
 
+
 /* The exp rule represents the syntax of expressions. The semantic value of
  * the rule is the register ID that will contain the value of the expression
  * at runtime. */
 exp
-  : NUMBER
+  : INBOUNDS LPAR var_id ASSIGN var_id LSQUARE exp RSQUARE RPAR
+  { 
+    // 1^ check: first variable_id must be a scalar variable
+    if (isArray($3)){
+      yyerror("First param must be a scalar variable");
+      YYERROR;
+    }
+
+    // 2^ check: second variable_must be an array
+    if (!isArray($5)){
+      yyerror("Second param must be an array");
+      YYERROR;
+    }
+
+    // label creation -> end of the operator program
+    t_label *end = createLabel(program);
+
+    // result initialization to zero (FALSE by default)
+    $$ = getNewRegister(program);
+    genLI(program, $$, 0);
+
+    // array size
+    t_regID size = getNewRegister(program);
+    genADDI(program, size, REG_0, $5->arraySize);
+
+    // checks onn the array index
+    genBGE(program, $7, size, end); // above the upper threshold -> end
+    genBLT(program, $7, REG_0, end); // below zero -> end
+    
+    // valid assignment
+    t_regID value = genLoadArrayElement(program, $5, $7);
+    genStoreRegisterToVariable(program, $3, value);
+    
+    // return TRUE
+    genLI(program, $$, 1);
+
+    // end of the operator program
+    assignLabel(program, end);
+  }
+  | NUMBER
   {
     $$ = getNewRegister(program);
     genLI(program, $$, $1);
