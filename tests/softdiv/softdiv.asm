@@ -23,7 +23,7 @@ _start: li     a7, 5                                    # ./tests/softdiv/softdi
         la     s2, l_b
         lw     s2, 0(s2)
         addi   s3, zero, 0
-        addi   s4, s1, 0
+        addi   s1, s1, 0
 l_3:    slt    s4, s1, s2
         xori   s4, s4, 1
         beq    s4, zero, l_4

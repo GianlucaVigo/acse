@@ -438,27 +438,39 @@ exp
   }
   | exp SOFT_DIV_OP exp
   {
+    // REGISTERS
+    // result initialization to zero
     $$ = getNewRegister(program);
     genADDI(program, $$, REG_0, 0);
-
+    // reminder initialization to the dividend (stored in $1)
     t_regID reminder = getNewRegister(program);
     genADDI(program, reminder, $1, 0);
-
-    t_label *conditionLabel = createLabel(program);
-    t_label *exitLabel = createLabel(program);
-
-    //while (reminder <= divisor)
-    assignLabel(program, conditionLabel);
+    // stores the check value
     t_regID condition = getNewRegister(program);
-    genSGE(program, condition, $1, $3);
+
+    // LABELS creation
+    t_label *conditionLabel = createLabel(program); // where the loop starts
+    t_label *exitLabel = createLabel(program); // where the program ends
+    
+
+    // while (reminder >= divisor)
+    assignLabel(program, conditionLabel);
+
+    // check if dividend (reminder) is greater or equal than divisor ($3)
+    genSGE(program, condition, reminder, $3);
+    // $1 >= $3 -> condition = 1 -> we can perform another substraction (increment by 1 the result)
+    // $1 < $3  -> condition = 0 -> stop
+    //
+    // if (condition == 0) -jump-> exitLabel
     genBEQ(program, condition, REG_0, exitLabel);
 
-    //while body
-    genADDI(program, $$, $$, 1); //i = i++
-    genSUB(program, $1, $1, $3); //reminder = reminder - divisor
+    // if (condition == 1)
+    // while body
+    genADDI(program, $$, $$, 1); // increment the result by one
+    genSUB(program, reminder, reminder, $3); // reminder = reminder - divisor
     genJ(program, conditionLabel);
 
-    //
+    // end of the operator program code
     assignLabel(program, exitLabel);
   }
 ;
