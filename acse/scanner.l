@@ -72,6 +72,7 @@ ID                        [a-zA-Z_][a-zA-Z0-9_]*
 "&&"                      { return ANDAND; }
 "||"                      { return OROR; }
 ","                       { return COMMA; }
+"random"                  { return RANDOM; }
 
 "do"                      { return DO; }
 "else"                    { return ELSE; }
@@ -81,6 +82,7 @@ ID                        [a-zA-Z_][a-zA-Z0-9_]*
 "return"                  { return RETURN; }
 "read"                    { return READ; }
 "write"                   { return WRITE; }
+"randomize"               { return RANDOMIZE; }
 
 {ID}                      {
                             yylval.string = strdup(yytext);
