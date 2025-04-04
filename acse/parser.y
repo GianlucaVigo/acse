@@ -19,6 +19,8 @@
 // The program currently being compiled.
 static t_program *program;
 
+t_regID random_n;
+
 void yyerror(const char *msg)
 {
   emitError(curFileLoc, "%s", msg);
@@ -70,6 +72,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token RANDOM RANDOMIZE
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -123,7 +126,13 @@ void yyerror(const char *msg)
  *   1. Declarations (zero or more),
  *   2. A list of instructions (zero or more). */
 program
-  : var_declarations statements EOF_TOK
+  : var_declarations 
+  {
+    printf("------ random-n initialization ------\n");
+    random_n = getNewRegister(program);
+    genLI(program, random_n, 12345);
+  }
+  statements EOF_TOK
   {
     // Generate the epilog of the program, that is, a call to the
     // `exit' syscall.
@@ -182,6 +191,7 @@ statement
   | return_statement SEMI
   | read_statement SEMI
   | write_statement SEMI
+  | randomize_statement SEMI
   | SEMI
 ;
 
@@ -303,6 +313,15 @@ write_statement
     t_regID rTmp = getNewRegister(program);
     genLI(program, rTmp, '\n');
     genPrintCharSyscall(program, rTmp);
+  }
+;
+
+randomize_statement
+  : RANDOMIZE LPAR exp RPAR
+  {
+    printf("------ randomize statement ------\n");
+    genLI(program, random_n, 12345);
+    printf("random_n is set to 12345\n");
   }
 ;
 
@@ -434,6 +453,21 @@ exp
     genSNE(program, rNormalizedOp2, $3, REG_0);
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
+  }
+  | RANDOM LPAR RPAR
+  {
+    printf("-------- Random operator --------\n");
+
+    //-----------
+    $$ = getNewRegister(program);
+
+    genMULI(program, $$, random_n, 1664525);
+    genADDI(program, $$, $$, 1013904223);
+
+    genADD(program, random_n, $$, REG_0);
+    //-----------
+    
+    printf("random_n has changed!\n");
   }
 ;
 
