@@ -70,6 +70,7 @@ void yyerror(const char *msg)
 %token TYPE
 %token RETURN
 %token READ WRITE ELSE
+%token COUNT_ONES
 
 // These are the tokens with a semantic value.
 %token <ifStmt> IF
@@ -435,6 +436,48 @@ exp
     $$ = getNewRegister(program);
     genOR(program, $$, rNormalizedOp1, rNormalizedOp2);
   }
+  | COUNT_ONES LPAR exp RPAR
+  {
+    // result register declaration 
+    $$ = getNewRegister(program);
+
+    // labels creation:
+    // - start of the loop/cycle
+    t_label *loop = createLabel(program);
+    // - end of the program
+    t_label *end = createLabel(program);
+
+    // registers definition:
+    // how many bits I have to shift
+    t_regID offset = getNewRegister(program);
+    genLI(program, offset, 31);
+    // single bit obtained by ANDI operation
+    t_regID singleBit = getNewRegister(program);
+    // shifted version of exp
+    t_regID numShifted = getNewRegister(program);
+
+
+    // LOOP STARTS
+    assignLabel(program, loop);
+    
+    // numShifted is $3 value shifted to the right by offset times
+    genSRA(program, numShifted, $3, offset);
+    // singleBit = num && 1 (returns the least significant bit)
+    genANDI(program, singleBit, numShifted, 1);
+    // update the result by adding singleBit
+    genADD(program, $$, $$, singleBit);
+    // if (offset == 0) -j-> "end"
+    genBEQ(program, offset, REG_0, end);
+    // otherwise ->  update offset
+    genSUBI(program, offset, offset, 1);
+    
+    // -> "loop"
+    genJ(program, loop);
+    // LOOP ENDS
+
+    // END
+    assignLabel(program, end);
+ }
 ;
 
 var_id
