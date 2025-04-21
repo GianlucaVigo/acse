@@ -34,7 +34,7 @@ l_3:    la     s1, l_i                                  # ./tests/random/random.
 l_4:    li     s1, 12300                                # ./tests/random/random.c:9
         li     s2, 45
         add    s1, s1, s2
-        li     s0, 12345
+        add    s0, s1, zero
         li     s1, 1664525                              # ./tests/random/random.c:10
         mul    s1, s0, s1
         li     s2, 1013904223

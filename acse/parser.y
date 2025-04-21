@@ -320,8 +320,8 @@ randomize_statement
   : RANDOMIZE LPAR exp RPAR
   {
     printf("------ randomize statement ------\n");
-    genLI(program, random_n, 12345);
-    printf("random_n is set to 12345\n");
+    genADD(program, random_n, $3, REG_0);
+    printf("random_n is set to the specified expression\n");
   }
 ;
 
